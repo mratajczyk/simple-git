@@ -125,11 +125,14 @@ class Repository(object):
             self.logger.debug('File not found: {}'.format(str(path_object)))
             raise SgitException('pathspec \'{}\' did not match any files'.format(add_path))
 
+    def can_commit(self):
+        return len(list(self.index.keys())) > 0
+
     def commit(self, message: str):
         if len(message.strip()) == 0:
             raise SgitException('Empty commit message')
 
-        if len(list(self.index.keys())) == 0:
+        if self.can_commit() is False:
             raise SgitException('Nothing to commit')
 
         commit = str(uuid.uuid4())[:8]

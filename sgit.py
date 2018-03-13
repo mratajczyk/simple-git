@@ -47,9 +47,14 @@ def add(repo: Repository, path: str):
 
 
 @cli.command()
-@click.option('--message', '-m', required=True)
+@click.option('--message', '-m')
 @click.pass_obj
 def commit(repo: Repository, message: str):
+    if message is None:
+        editor_top = '# Put commit message above this line\n'
+        editor_message = click.edit('\n\n' + editor_top)
+        if editor_message is not None:
+            message = editor_message.split(editor_top, 1)[0].rstrip('\n')
     try:
         repo.commit(message)
     except SgitException as e:
@@ -60,7 +65,9 @@ def commit(repo: Repository, message: str):
 @click.pass_obj
 def log(repo: Repository):
     for row in repo.log():
-        echo('\t'.join([format_important(row['id']), str(row['time']), row['message']]))
+        echo('\t'.join([format_important(row['id']), str(row['time'])]))
+        echo(row['message'].strip())
+        echo('\n' * 2)
 
 
 @cli.command()
