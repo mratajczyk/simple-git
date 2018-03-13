@@ -1,9 +1,10 @@
 # coding=utf-8
 import hashlib
 import os
+import shelve
+from logging import Logger
 from os.path import relpath
 from pathlib import Path
-from logging import Logger
 
 
 def md5(value: str):
@@ -25,7 +26,8 @@ class Repository(object):
         self.objects_dir = Path(self.repo_dir, 'objects')
         self.staging_dir = Path(self.repo_dir, 'staging')
         self.head_file = Path(self.repo_dir, 'HEAD')
-        self.index_file = Path(self.repo_dir, 'index')
+        if self.repo_dir.is_dir():
+            self.index = shelve.open(str(Path(self.repo_dir, 'index.dbm')), writeback=True)
 
     @property
     def dir(self):
@@ -47,7 +49,6 @@ class Repository(object):
 
         files_to_create = [
             self.head_file,
-            self.index_file,
         ]
 
         for directory in dirs_to_create:
@@ -67,22 +68,6 @@ class Repository(object):
     def get_relative_paths(self, files: list):
         return [self.get_relative_path(f) for f in files]
 
-    def get_index(self):
-
-        def read_index(line: str):
-            result = None
-            try:
-                file, staged_file_name = line.split(self.INDEX_COL_SEPARATOR)
-                content = staged_file_name.split('_')[1]
-                result = {'file': file, 'content': content, 'staged_file_name': staged_file_name}
-            except ValueError:
-                pass
-            return result
-
-        index_file_content = Path(self.index_file).read_text(encoding='utf-8').split('\n')
-        files = [read_index(line) for line in index_file_content if read_index(line) is not None]
-        return files
-
     def get_working_directory(self):
         files = [str(file) for file in Path(self.home).rglob('*')
                  if self.is_workdir_file(file)]
@@ -90,43 +75,27 @@ class Repository(object):
         return self.get_relative_paths(files)
 
     def status(self):
+        staged_files = list(self.index.keys())
+        not_staged = [(x, 'not staged') for x in list(set(self.get_working_directory()) - set(staged_files))]
 
-        working_files = self.get_working_directory()
-        staged = self.get_index()
-        staged_list = [x.get('file') for x in staged if 'file' in x]
-        not_staged = [(x, 'not staged') for x in list(set(working_files) - set(staged_list))]
-
-        for staged_file in staged:
-            working_version = md5(Path(self.home, staged_file.get('file')).read_text())
-            if working_version != staged_file.get('content'):
-                not_staged.append((staged_file.get('file'), 'modified'))
+        for staged_file in staged_files:
+            working_version = md5(Path(self.home, staged_file).read_text())
+            if working_version != md5(Path(self.staging_dir, self.index[staged_file]).read_text()):
+                not_staged.append((staged_file, 'modified'))
 
         return {
-            'staged': [(x.get('file'), '') for x in staged if 'file' in x],
+            'staged': [(x, '') for x in staged_files],
             'not_staged': not_staged
         }
 
     def set_index(self, files: list):
-
-        actual_index = self.get_index()
-
         for to_index in files:
             assert len(to_index) == 3
             file_name, staged_file_name, content = to_index
             Path(self.staging_dir, staged_file_name).write_text(content)
-            try:
-                check = next(x for x in actual_index if x.get('file') == file_name)
-                idx = actual_index.index(check)
-                actual_index[idx]['staged_file_name'] = staged_file_name
-                self.log.debug('Updated file in staging: {}'.format(file_name))
-            except StopIteration:
-                actual_index.append({'file': file_name, 'staged_file_name': staged_file_name})
-                self.log.debug('Added file to staging: {}'.format(file_name))
-
-        all_lines = [self.INDEX_COL_SEPARATOR.join([x.get('file'), x.get('staged_file_name')]) for x in actual_index]
-        index_content = '\n'.join(all_lines)
-        Path(self.index_file).write_text(index_content)
-        self.log.debug('Files in staging: {}'.format(len(all_lines)))
+            self.index[file_name] = staged_file_name
+            self.log.debug('Added file to staging: {}'.format(file_name))
+        self.log.debug('Files in staging: {}'.format(len(self.index.keys())))
 
     def add(self, add_path: str):
         to_add = []
