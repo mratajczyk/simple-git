@@ -2,9 +2,13 @@
 import hashlib
 import os
 import shelve
+import datetime
 from logging import Logger
+from operator import itemgetter
 from os.path import relpath
 from pathlib import Path
+import uuid
+import shutil
 
 
 def md5(value: str):
@@ -17,11 +21,10 @@ class SgitException(Exception):
 
 class Repository(object):
     REPO_DIRECTORY_NAME = '.sgit'
-    INDEX_COL_SEPARATOR = '\t'
 
     def __init__(self, home: str, logger: Logger):
         self.home = home
-        self.log = logger
+        self.logger = logger
         self.repo_dir = Path(home, self.REPO_DIRECTORY_NAME)
         self.objects_dir = Path(self.repo_dir, 'objects')
         self.staging_dir = Path(self.repo_dir, 'staging')
@@ -38,7 +41,7 @@ class Repository(object):
 
     def init(self):
         if self.check_repository_dir():
-            self.log.debug('Repository directory already exists: {}'.format(self.repo_dir))
+            self.logger.debug('Repository directory already exists: {}'.format(self.repo_dir))
             raise SgitException('Already an sgit repo')
 
         dirs_to_create = [
@@ -53,11 +56,11 @@ class Repository(object):
 
         for directory in dirs_to_create:
             Path(directory).mkdir(exist_ok=True)
-            self.log.debug('Created repo directory: {}'.format(directory))
+            self.logger.debug('Created repo directory: {}'.format(directory))
 
         for file in files_to_create:
             Path(file).touch(exist_ok=True)
-            self.log.debug('Created repo file: {}'.format(file))
+            self.logger.debug('Created repo file: {}'.format(file))
 
     def is_workdir_file(self, file: Path):
         return file.samefile(self.repo_dir) is False and Path(self.repo_dir) not in file.parents and file.is_file()
@@ -71,7 +74,7 @@ class Repository(object):
     def get_working_directory(self):
         files = [str(file) for file in Path(self.home).rglob('*')
                  if self.is_workdir_file(file)]
-        self.log.debug('Files in working directory: {}'.format(len(files)))
+        self.logger.debug('Files in working directory: {}'.format(len(files)))
         return self.get_relative_paths(files)
 
     def status(self):
@@ -94,8 +97,8 @@ class Repository(object):
             file_name, staged_file_name, content = to_index
             Path(self.staging_dir, staged_file_name).write_text(content)
             self.index[file_name] = staged_file_name
-            self.log.debug('Added file to staging: {}'.format(file_name))
-        self.log.debug('Files in staging: {}'.format(len(self.index.keys())))
+            self.logger.debug('Added file to staging: {}'.format(file_name))
+        self.logger.debug('Files in staging: {}'.format(len(self.index.keys())))
 
     def add(self, add_path: str):
         to_add = []
@@ -119,5 +122,41 @@ class Repository(object):
         self.set_index(to_index)
 
         if len(to_index) == 0:
-            self.log.debug('File not found: {}'.format(str(path_object)))
+            self.logger.debug('File not found: {}'.format(str(path_object)))
             raise SgitException('pathspec \'{}\' did not match any files'.format(add_path))
+
+    def commit(self, message: str):
+        if len(message.strip()) == 0:
+            raise SgitException('Empty commit message')
+
+        if len(list(self.index.keys())) == 0:
+            raise SgitException('Nothing to commit')
+
+        commit = str(uuid.uuid4())[:8]
+        commit_dir = Path(self.objects_dir, commit)
+        commit_dir.mkdir()
+
+        commit_meta = shelve.open(str(Path(commit_dir, 'meta')), writeback=True)
+        commit_meta['id'] = commit
+        commit_meta['message'] = message
+        commit_meta['time'] = datetime.datetime.now()
+        commit_meta['index'] = dict(self.index)
+
+        for file, staging_name in commit_meta['index'].items():
+            source = Path(self.staging_dir, staging_name)
+            target = Path(commit_dir, staging_name)
+            shutil.copy(str(source), str(target))
+            try:
+                os.remove(str(source))
+                del (self.index[file])
+            except OSError:
+                pass
+
+        self.head_file.write_text(commit)
+
+    def log(self):
+        commits = []
+        for child in self.objects_dir.rglob('*'):
+            if child.name == 'meta':
+                commits.append(dict(shelve.open(str(child))))
+        return sorted(commits, key=itemgetter('time'))[::-1]

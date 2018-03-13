@@ -1,21 +1,11 @@
 # coding=utf-8
 import logging
+import os
 
 import click
-import os
+
+from formats import format_important, format_error, format_ok
 from simple_git import Repository, SgitException
-
-
-def format_error(message: str):
-    return click.style(message, fg='red')
-
-
-def format_ok(message: str):
-    return click.style(message, fg='green')
-
-
-def format_important(message: str):
-    return click.style(message, bold=True)
 
 
 def echo(message: str):
@@ -57,9 +47,20 @@ def add(repo: Repository, path: str):
 
 
 @cli.command()
+@click.option('--message', '-m', required=True)
 @click.pass_obj
-def commit():
-    pass
+def commit(repo: Repository, message: str):
+    try:
+        repo.commit(message)
+    except SgitException as e:
+        echo(format_error(str(e)))
+
+
+@cli.command()
+@click.pass_obj
+def log(repo: Repository):
+    for row in repo.log():
+        echo('\t'.join([format_important(row['id']), str(row['time']), row['message']]))
 
 
 @cli.command()
@@ -70,7 +71,6 @@ def status(repo: Repository):
         {'key': 'staged', 'message': 'Changes to be committed:'},
         {'key': 'not_staged', 'message': 'Changes not staged for commit:'}
     ]
-
     for file_type in types:
         key = file_type.get('key')
         message = file_type.get('message')
