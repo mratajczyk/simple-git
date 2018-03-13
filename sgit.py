@@ -3,25 +3,25 @@ import os
 from simple_git import Repository, SgitException
 
 
-def format_error(message):
+def format_error(message: str):
     return click.style(message, bg='red', fg='white')
 
 
-def format_ok(message):
-    return message
+def format_ok(message: str):
+    return click.style(message, fg='green')
 
 
-def format_important(message):
+def format_important(message: str):
     return click.style(message, bold=True)
 
 
-def echo(message):
+def echo(message: str):
     click.echo(message)
 
 
 @click.group()
 @click.pass_context
-def cli(ctx):
+def cli(ctx: click.Context):
     home = os.environ['SGIT_DIR'] if os.environ.get('SGIT_DIR') else os.getcwd()
     ctx.obj = Repository(home=home)
     if ctx.obj.check_repository_dir() is False and ctx.invoked_subcommand != 'init':
@@ -30,7 +30,7 @@ def cli(ctx):
 
 @cli.command()
 @click.pass_obj
-def init(repo):
+def init(repo: Repository):
     try:
         repo.init()
         echo(format_ok('Repository created at {}'.format(repo.dir)))
@@ -39,9 +39,10 @@ def init(repo):
 
 
 @cli.command()
+@click.argument('path')
 @click.pass_obj
-def add():
-    pass
+def add(repo: Repository, path: str):
+    repo.add(path)
 
 
 @cli.command()
@@ -52,7 +53,7 @@ def commit():
 
 @cli.command()
 @click.pass_obj
-def status(repo):
+def status(repo: Repository):
     repo_status = repo.status()
     types = [
         {'key': 'staged', 'message': 'Changes to be committed:'},
@@ -63,7 +64,7 @@ def status(repo):
         if len(repo_status.get(file_type.get('key'))) > 0:
             echo(format_important(file_type.get('message')))
             for file in repo_status.get(file_type.get('key')):
-                echo('\t' + file)
+                echo(' '.join([format_ok(file[1]), file[0]]))
 
 
 cli.add_command(init)
