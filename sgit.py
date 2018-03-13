@@ -1,10 +1,12 @@
+import logging
+
 import click
 import os
 from simple_git import Repository, SgitException
 
 
 def format_error(message: str):
-    return click.style(message, bg='red', fg='white')
+    return click.style(message, fg='red')
 
 
 def format_ok(message: str):
@@ -21,9 +23,14 @@ def echo(message: str):
 
 @click.group()
 @click.pass_context
-def cli(ctx: click.Context):
+@click.option('--debug/--no-debug', default=False)
+def cli(ctx: click.Context, debug):
+    logger = logging.getLogger(__name__)
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+
     home = os.environ['SGIT_DIR'] if os.environ.get('SGIT_DIR') else os.getcwd()
-    ctx.obj = Repository(home=home)
+    ctx.obj = Repository(home=home, logger=logger)
     if ctx.obj.check_repository_dir() is False and ctx.invoked_subcommand != 'init':
         raise click.UsageError(format_error('Not a sgit repository, use sgit init'))
 
@@ -42,7 +49,10 @@ def init(repo: Repository):
 @click.argument('path')
 @click.pass_obj
 def add(repo: Repository, path: str):
-    repo.add(path)
+    try:
+        repo.add(path)
+    except SgitException as e:
+        echo(format_error(str(e)))
 
 
 @cli.command()

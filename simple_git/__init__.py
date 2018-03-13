@@ -2,6 +2,7 @@ import hashlib
 import os
 from os.path import relpath
 from pathlib import Path
+from logging import Logger
 
 
 def md5(value: str):
@@ -14,9 +15,11 @@ class SgitException(Exception):
 
 class Repository(object):
     REPO_DIRECTORY_NAME = '.sgit'
+    INDEX_COL_SEPARATOR = '\t'
 
-    def __init__(self, home: str):
+    def __init__(self, home: str, logger: Logger):
         self.home = home
+        self.log = logger
         self.repo_dir = Path(home, self.REPO_DIRECTORY_NAME)
         self.objects_dir = Path(self.repo_dir, 'objects')
         self.staging_dir = Path(self.repo_dir, 'staging')
@@ -32,6 +35,7 @@ class Repository(object):
 
     def init(self):
         if self.check_repository_dir():
+            self.log.debug('Repository directory already exists: {}'.format(self.repo_dir))
             raise SgitException('Already an sgit repo')
 
         dirs_to_create = [
@@ -47,9 +51,11 @@ class Repository(object):
 
         for directory in dirs_to_create:
             Path(directory).mkdir(exist_ok=True)
+            self.log.debug('Created repo directory: {}'.format(directory))
 
         for file in files_to_create:
             Path(file).touch(exist_ok=True)
+            self.log.debug('Created repo file: {}'.format(file))
 
     def is_workdir_file(self, file: Path):
         return file.samefile(self.repo_dir) is False and Path(self.repo_dir) not in file.parents and file.is_file()
@@ -65,7 +71,7 @@ class Repository(object):
         def read_index(line: str):
             result = None
             try:
-                file, staged_file_name = line.split('\t')
+                file, staged_file_name = line.split(self.INDEX_COL_SEPARATOR)
                 content = staged_file_name.split('_')[1]
                 result = {'file': file, 'content': content, 'staged_file_name': staged_file_name}
             except ValueError:
@@ -79,6 +85,7 @@ class Repository(object):
     def get_working_directory(self):
         files = [str(file) for file in Path(self.home).rglob('*')
                  if self.is_workdir_file(file)]
+        self.log.debug('Files in working directory: {}'.format(len(files)))
         return self.get_relative_paths(files)
 
     def status(self):
@@ -110,11 +117,15 @@ class Repository(object):
                 check = next(x for x in actual_index if x.get('file') == file_name)
                 idx = actual_index.index(check)
                 actual_index[idx]['staged_file_name'] = staged_file_name
+                self.log.debug('Updated file in staging: {}'.format(file_name))
             except StopIteration:
                 actual_index.append({'file': file_name, 'staged_file_name': staged_file_name})
+                self.log.debug('Added file to staging: {}'.format(file_name))
 
-        index_content = '\n'.join([x.get('file') + '\t' + x.get('staged_file_name') for x in actual_index])
+        all_lines = [self.INDEX_COL_SEPARATOR.join([x.get('file'), x.get('staged_file_name')]) for x in actual_index]
+        index_content = '\n'.join(all_lines)
         Path(self.index_file).write_text(index_content)
+        self.log.debug('Files in staging: {}'.format(len(all_lines)))
 
     def add(self, add_path: str):
         to_add = []
@@ -135,3 +146,8 @@ class Repository(object):
                 staged_file_name = '_'.join([hash_name, hash_content])
                 to_index.append((self.get_relative_path(add_file), staged_file_name, add_file.read_text()))
         self.set_index(to_index)
+
+        if len(to_index) == 0:
+            self.log.debug('File not found: {}'.format(str(path_object)))
+            raise SgitException('pathspec \'{}\' did not match any files'.format(add_path))
+
