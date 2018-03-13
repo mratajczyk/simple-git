@@ -1,3 +1,4 @@
+# coding=utf-8
 import logging
 
 import click
@@ -71,10 +72,13 @@ def status(repo: Repository):
     ]
 
     for file_type in types:
-        if len(repo_status.get(file_type.get('key'))) > 0:
-            echo(format_important(file_type.get('message')))
-            for file in repo_status.get(file_type.get('key')):
-                echo(' '.join([format_ok(file[1]), file[0]]))
+        key = file_type.get('key')
+        message = file_type.get('message')
+        if len(repo_status.get(key)) > 0:
+            echo(format_important(message))
+            for file in repo_status.get(key):
+                file_info, file_name = file
+                echo(' '.join([format_ok(file_info), file_name]))
 
 
 cli.add_command(init)

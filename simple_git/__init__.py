@@ -1,3 +1,4 @@
+# coding=utf-8
 import hashlib
 import os
 from os.path import relpath
@@ -6,7 +7,7 @@ from logging import Logger
 
 
 def md5(value: str):
-    return hashlib.md5(value.encode('utf-8')).hexdigest()
+    return hashlib.md5(value.encode()).hexdigest()
 
 
 class SgitException(Exception):
@@ -141,13 +142,13 @@ class Repository(object):
 
         for add_file in to_add:
             if self.is_workdir_file(add_file):
+                text = add_file.read_text()
                 hash_name = md5(str(add_file))
-                hash_content = md5(add_file.read_text())
+                hash_content = md5(text)
                 staged_file_name = '_'.join([hash_name, hash_content])
-                to_index.append((self.get_relative_path(add_file), staged_file_name, add_file.read_text()))
+                to_index.append((self.get_relative_path(add_file), staged_file_name, text))
         self.set_index(to_index)
 
         if len(to_index) == 0:
             self.log.debug('File not found: {}'.format(str(path_object)))
             raise SgitException('pathspec \'{}\' did not match any files'.format(add_path))
-
