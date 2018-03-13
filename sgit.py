@@ -17,13 +17,18 @@ def echo(message: str):
 @click.option('--debug/--no-debug', default=False)
 def cli(ctx: click.Context, debug):
     logger = logging.getLogger(__name__)
+
     if debug:
         logging.basicConfig(level=logging.DEBUG)
 
-    home = os.environ['SGIT_DIR'] if os.environ.get('SGIT_DIR') else os.getcwd()
+    home = os.environ['SGIT_DIR'] \
+        if os.environ.get('SGIT_DIR') else os.getcwd()
+
     ctx.obj = Repository(home=home, logger=logger)
-    if ctx.obj.check_repository_dir() is False and ctx.invoked_subcommand != 'init':
-        raise click.UsageError(format_error('Not a sgit repository, use sgit init'))
+    if ctx.obj.check_repository_dir() \
+            is False and ctx.invoked_subcommand != 'init':
+        error = format_error('Not a sgit repository, use sgit init')
+        raise click.UsageError(error)
 
 
 @cli.command()

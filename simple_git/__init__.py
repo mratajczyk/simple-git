@@ -30,18 +30,25 @@ class Repository(object):
         self.staging_dir = Path(self.repo_dir, 'staging')
         self.head_file = Path(self.repo_dir, 'HEAD')
         if self.repo_dir.is_dir():
-            self.index = shelve.open(str(Path(self.repo_dir, 'index.dbm')), writeback=True)
+            db_file = str(Path(self.repo_dir, 'index.dbm'))
+            self.index = shelve.open(db_file, writeback=True)
 
     @property
     def dir(self):
         return self.repo_dir
+
+    @property
+    def index_keys(self):
+        return list(self.index.keys())
 
     def check_repository_dir(self):
         return os.path.exists(self.repo_dir)
 
     def init(self):
         if self.check_repository_dir():
-            self.logger.debug('Repository directory already exists: {}'.format(self.repo_dir))
+            message = 'Repository directory already exists: {}' \
+                .format(self.repo_dir)
+            self.logger.debug(message)
             raise SgitException('Already an sgit repo')
 
         dirs_to_create = [
@@ -63,7 +70,9 @@ class Repository(object):
             self.logger.debug('Created repo file: {}'.format(file))
 
     def is_workdir_file(self, file: Path):
-        return file.samefile(self.repo_dir) is False and Path(self.repo_dir) not in file.parents and file.is_file()
+        return file.samefile(self.repo_dir) is False \
+               and Path(self.repo_dir) not in file.parents \
+               and file.is_file()
 
     def get_relative_path(self, file_name: str):
         return relpath(file_name, self.home)
@@ -78,12 +87,19 @@ class Repository(object):
         return self.get_relative_paths(files)
 
     def status(self):
-        staged_files = list(self.index.keys())
-        not_staged = [(x, 'not staged') for x in list(set(self.get_working_directory()) - set(staged_files))]
+        staged_files = self.index_keys
+        diff = list(set(self.get_working_directory()) - set(staged_files))
+        not_staged = [(x, 'not staged') for x in diff]
 
         for staged_file in staged_files:
-            working_version = md5(Path(self.home, staged_file).read_text())
-            if working_version != md5(Path(self.staging_dir, self.index[staged_file]).read_text()):
+
+            working_file = Path(self.home, staged_file)
+            staged_file_path = Path(self.staging_dir, self.index[staged_file])
+
+            working_version = md5(working_file.read_text())
+            staged_version = md5(staged_file_path.read_text())
+
+            if working_version != staged_version:
                 not_staged.append((staged_file, 'modified'))
 
         return {
@@ -98,7 +114,8 @@ class Repository(object):
             Path(self.staging_dir, staged_file_name).write_text(content)
             self.index[file_name] = staged_file_name
             self.logger.debug('Added file to staging: {}'.format(file_name))
-        self.logger.debug('Files in staging: {}'.format(len(self.index.keys())))
+        count_keys = len(self.index_keys)
+        self.logger.debug('Files in staging: {}'.format(count_keys))
 
     def add(self, add_path: str):
         to_add = []
@@ -118,15 +135,19 @@ class Repository(object):
                 hash_name = md5(str(add_file))
                 hash_content = md5(text)
                 staged_file_name = '_'.join([hash_name, hash_content])
-                to_index.append((self.get_relative_path(add_file), staged_file_name, text))
+                to_index.append((self.get_relative_path(add_file),
+                                 staged_file_name,
+                                 text))
         self.set_index(to_index)
 
         if len(to_index) == 0:
             self.logger.debug('File not found: {}'.format(str(path_object)))
-            raise SgitException('pathspec \'{}\' did not match any files'.format(add_path))
+            message = 'pathspec \'{}\' did not match any files' \
+                .format(add_path)
+            raise SgitException(message)
 
     def can_commit(self):
-        return len(list(self.index.keys())) > 0
+        return len(self.index_keys) > 0
 
     def commit(self, message: str):
         if len(message.strip()) == 0:
@@ -139,7 +160,8 @@ class Repository(object):
         commit_dir = Path(self.objects_dir, commit)
         commit_dir.mkdir()
 
-        commit_meta = shelve.open(str(Path(commit_dir, 'meta')), writeback=True)
+        meta_db = str(Path(commit_dir, 'meta'))
+        commit_meta = shelve.open(meta_db, writeback=True)
         commit_meta['id'] = commit
         commit_meta['message'] = message
         commit_meta['time'] = datetime.datetime.now()
@@ -150,7 +172,7 @@ class Repository(object):
             target = Path(commit_dir, staging_name)
             shutil.copy(str(source), str(target))
             os.remove(str(source))
-            del(self.index[file])
+            del (self.index[file])
 
         self.head_file.write_text(commit)
 

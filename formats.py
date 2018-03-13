@@ -1,6 +1,7 @@
 # coding=utf-8
 import click
 
+
 def format_error(message: str):
     return click.style(message, fg='red')
 
