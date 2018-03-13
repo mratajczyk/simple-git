@@ -146,11 +146,8 @@ class Repository(object):
             source = Path(self.staging_dir, staging_name)
             target = Path(commit_dir, staging_name)
             shutil.copy(str(source), str(target))
-            try:
-                os.remove(str(source))
-                del (self.index[file])
-            except OSError:
-                pass
+            os.remove(str(source))
+            del(self.index[file])
 
         self.head_file.write_text(commit)
 
