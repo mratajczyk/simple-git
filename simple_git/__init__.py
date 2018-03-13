@@ -1,14 +1,14 @@
 # coding=utf-8
+import datetime
 import hashlib
 import os
 import shelve
-import datetime
+import shutil
+import uuid
 from logging import Logger
 from operator import itemgetter
 from os.path import relpath
 from pathlib import Path
-import uuid
-import shutil
 
 
 def md5(value: str):
