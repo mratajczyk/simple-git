@@ -85,11 +85,11 @@ def status(repo: Repository):
         {'key': 'not_staged', 'message': 'Changes not staged for commit:'}
     ]
     for file_type in types:
-        key = file_type.get('key')
+        key = file_type['key']
         message = file_type.get('message')
-        if len(repo_status.get(key)) > 0:
+        if len(repo_status[key]) > 0:
             echo(format_important(message))
-            for file in repo_status.get(key):
+            for file in repo_status[key]:
                 file_info, file_name = file
                 echo(' '.join([format_ok(file_info), file_name]))
 

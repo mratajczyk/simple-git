@@ -42,7 +42,7 @@ class Repository(object):
         return list(self.index.keys())
 
     def check_repository_dir(self):
-        return os.path.exists(self.repo_dir)
+        return os.path.exists(str(self.repo_dir))
 
     def init(self):
         if self.check_repository_dir():
