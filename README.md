@@ -6,7 +6,7 @@ Simple implementation of git like program in Python
 
 ### Requirements
 
-Python 3.6
+Python 3
 
 ### Installing
 
