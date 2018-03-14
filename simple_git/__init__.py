@@ -30,7 +30,7 @@ class Repository(object):
         self.staging_dir = Path(self.repo_dir, 'staging')
         self.head_file = Path(self.repo_dir, 'HEAD')
         if self.repo_dir.is_dir():
-            db_file = str(Path(self.repo_dir, 'index.dbm'))
+            db_file = str(Path(self.repo_dir, 'index'))
             self.index = shelve.open(db_file, writeback=True)
 
     @property
