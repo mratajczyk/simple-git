@@ -11,7 +11,8 @@ setup(
     description=('Simple implementation of git like system'
                  'in Python'),
     license='MIT',
-    py_modules=['sgit', 'simple_git', 'formats'],
+    py_modules=['sgit', 'formats'],
+    packages=['simple_git'],
     url='https://github.com/mratajczyk/simple-git',
     install_requires=required,
     entry_points='''
