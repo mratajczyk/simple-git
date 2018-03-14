@@ -78,7 +78,7 @@ class Repository(object):
         return relpath(file_name, str(self.home))
 
     def get_relative_paths(self, files: list):
-        return [self.get_relative_path(f) for f in files]
+        return [self.get_relative_path(str(f)) for f in files]
 
     def get_working_directory(self):
         files = [str(file) for file in Path(self.home).rglob('*')
@@ -135,7 +135,7 @@ class Repository(object):
                 hash_name = md5(str(add_file))
                 hash_content = md5(text)
                 staged_file_name = '_'.join([hash_name, hash_content])
-                to_index.append((self.get_relative_path(add_file),
+                to_index.append((self.get_relative_path(str(add_file)),
                                  staged_file_name,
                                  text))
         self.set_index(to_index)
