@@ -167,12 +167,16 @@ class Repository(object):
         commit_meta['time'] = datetime.datetime.now()
         commit_meta['index'] = dict(self.index)
 
+        self.logger.debug('Commiting: {}'.format(str(dict(commit_meta))))
+
         for file, staging_name in commit_meta['index'].items():
             source = Path(self.staging_dir, staging_name)
             target = Path(commit_dir, staging_name)
             shutil.copy(str(source), str(target))
             os.remove(str(source))
+            self.logger.debug('Removed staging file: {}'.format(str(source)))
             del (self.index[file])
+            self.logger.debug('Removed from index: {}'.format(str(file)))
 
         self.head_file.write_text(commit)
 
@@ -181,4 +185,5 @@ class Repository(object):
         for child in self.objects_dir.rglob('*'):
             if child.name == 'meta':
                 commits.append(dict(shelve.open(str(child))))
+        self.logger.debug('Log: {}'.format(str(commits)))
         return sorted(commits, key=itemgetter('time'))[::-1]
