@@ -75,7 +75,7 @@ class Repository(object):
                and file.is_file()
 
     def get_relative_path(self, file_name: str):
-        return relpath(file_name, self.home)
+        return relpath(file_name, str(self.home))
 
     def get_relative_paths(self, files: list):
         return [self.get_relative_path(f) for f in files]
