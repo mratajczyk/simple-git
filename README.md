@@ -1,6 +1,6 @@
 # Simple git 
 
-Simple implementation of git like system in Python
+Simple implementation of git like program in Python
 
 ## Getting Started
 
