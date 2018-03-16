@@ -5,7 +5,8 @@ import os
 
 import click
 from simple_git.click_helpers import format_error, format_important, format_ok, echo
-from simple_git.repository import Repository, SgitException
+from simple_git.repository import Repository
+from simple_git.exceptions import SgitException
 
 
 @click.group()

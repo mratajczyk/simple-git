@@ -10,13 +10,11 @@ from operator import itemgetter
 from os.path import relpath
 from pathlib import Path
 
+from simple_git.exceptions import SgitException
+
 
 def md5(value: str):
     return hashlib.md5(value.encode()).hexdigest()
-
-
-class SgitException(Exception):
-    pass
 
 
 class Repository(object):
