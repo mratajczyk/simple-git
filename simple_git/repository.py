@@ -14,7 +14,7 @@ from simple_git.exceptions import SgitException
 
 
 def md5(value: str):
-    return hashlib.md5(value.encode()).hexdigest()
+    return hashlib.md5(str(value).encode()).hexdigest()
 
 
 class Repository(object):
@@ -106,18 +106,22 @@ class Repository(object):
         }
 
     def set_index(self, files: list):
-        for to_index in files:
-            assert len(to_index) == 3
-            file_name, staged_file_name, content = to_index
-            Path(self.staging_dir, staged_file_name).write_text(content)
-            self.index[file_name] = staged_file_name
-            self.logger.debug('Added file to staging: {}'.format(file_name))
+        for add_file in files:
+            if self.is_workdir_file(add_file):
+                file_name = self.get_relative_path(str(add_file))
+                content = add_file.read_text()
+
+                staged_file_name = '_'.join([md5(add_file), md5(content)])
+                Path(self.staging_dir, staged_file_name).write_text(content)
+
+                self.index[file_name] = staged_file_name
+                self.logger.debug('Added file to staging: {}'.format(file_name))
+
         count_keys = len(self.index_keys)
         self.logger.debug('Files in staging: {}'.format(count_keys))
 
     def add(self, add_path: str):
         to_add = []
-        to_index = []
         path_object = Path(self.home, add_path)
 
         if path_object.is_file():
@@ -127,18 +131,9 @@ class Repository(object):
             for child in path_object.rglob('*'):
                 to_add.append(child)
 
-        for add_file in to_add:
-            if self.is_workdir_file(add_file):
-                text = add_file.read_text()
-                hash_name = md5(str(add_file))
-                hash_content = md5(text)
-                staged_file_name = '_'.join([hash_name, hash_content])
-                to_index.append((self.get_relative_path(str(add_file)),
-                                 staged_file_name,
-                                 text))
-        self.set_index(to_index)
+        self.set_index(to_add)
 
-        if len(to_index) == 0:
+        if len(to_add) == 0:
             self.logger.debug('File not found: {}'.format(str(path_object)))
             message = 'pathspec \'{}\' did not match any files' \
                 .format(add_path)
