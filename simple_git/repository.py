@@ -155,14 +155,20 @@ class Repository(object):
 
         meta_db = str(Path(commit_dir, 'meta'))
         commit_meta = shelve.open(meta_db, writeback=True)
-        commit_meta['id'] = commit
-        commit_meta['message'] = message
-        commit_meta['time'] = datetime.datetime.now()
-        commit_meta['index'] = dict(self.index)
+        commit_meta.update({
+            'id': commit,
+            'message': message,
+            'time': datetime.datetime.now(),
+            'index': dict(self.index)
+        })
 
-        self.logger.debug('Commiting: {}'.format(str(dict(commit_meta))))
+        self.logger.debug('Committing: {}'.format(str(dict(commit_meta))))
+        self.commit_files(commit_dir, commit_meta['index'])
+        self.head_file.write_text(commit)
+        self.logger.debug('Commit successful: {}'.format(str(dict(commit_meta))))
 
-        for file, staging_name in commit_meta['index'].items():
+    def commit_files(self, commit_dir: Path, staged_files: dict):
+        for file, staging_name in staged_files.items():
             source = Path(self.staging_dir, staging_name)
             target = Path(commit_dir, staging_name)
             shutil.copy(str(source), str(target))
@@ -170,8 +176,6 @@ class Repository(object):
             self.logger.debug('Removed staging file: {}'.format(str(source)))
             del (self.index[file])
             self.logger.debug('Removed from index: {}'.format(str(file)))
-
-        self.head_file.write_text(commit)
 
     def log(self):
         commits = []
