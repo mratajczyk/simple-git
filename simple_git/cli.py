@@ -4,13 +4,8 @@ import logging
 import os
 
 import click
-
-from formats import format_important, format_error, format_ok
-from simple_git import Repository, SgitException
-
-
-def echo(message: str):
-    click.echo(message)
+from simple_git.click_helpers import format_error, format_important, format_ok, echo
+from simple_git.repository import Repository, SgitException
 
 
 @click.group()

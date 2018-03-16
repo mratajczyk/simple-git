@@ -12,3 +12,7 @@ def format_ok(message: str):
 
 def format_important(message: str):
     return click.style(message, bold=True)
+
+
+def echo(message: str):
+    click.echo(message)

@@ -1,3 +1,4 @@
+# coding=utf-8
 from setuptools import setup
 
 with open('requirements.txt') as f:
@@ -17,6 +18,6 @@ setup(
     install_requires=required,
     entry_points='''
         [console_scripts]
-        sgit=sgit:cli
+        sgit=simple_git.cli:cli
     '''
 )
