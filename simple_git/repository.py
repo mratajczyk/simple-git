@@ -186,4 +186,4 @@ class Repository(object):
             if child.name == 'meta':
                 commits.append(dict(shelve.open(str(child))))
         self.logger.debug('Log: {}'.format(str(commits)))
-        return sorted(commits, key=itemgetter('time'))[::-1]
+        return sorted(commits, key=itemgetter('time'), reverse=True)
